@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>巡展作品光照预算工作台</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>巡展作品光照预算工作台</h1>
+      <p class="sub">曝光单位 lx·min（勒克斯·分钟） ｜ 曝光 = 实际经过分钟 × 照度</p>
+    </div>
+    <div class="meta">
+      <div>数据版本：<b id="version">–</b></div>
+      <div id="clock" class="clock">–</div>
+      <button id="refreshBtn" class="btn btn-ghost">刷新</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="card-head">
+        <h2>① 作品光照预算</h2>
+        <div class="hint">余额 = 展期上限 − 已用 − 预占；已用含既有累计与已结束时段实际曝光。</div>
+      </div>
+      <div class="table-wrap">
+        <table id="artTable">
+          <thead>
+            <tr>
+              <th>编号</th><th>名称</th>
+              <th class="num">展期上限</th>
+              <th class="num">既有累计</th>
+              <th class="num">已用</th>
+              <th class="num">预占(进行中/未开始)</th>
+              <th class="num">余额</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <form id="artForm" class="inline-form">
+        <input type="hidden" name="id" />
+        <input name="code" placeholder="作品编号，如 A04" required />
+        <input name="title" placeholder="作品名称" required />
+        <input name="cap" type="number" min="1" step="1" placeholder="展期曝光上限" required />
+        <input name="existing" type="number" min="0" step="1" placeholder="既有累计曝光" required />
+        <button class="btn" type="submit" id="artSubmit">录入作品</button>
+        <button class="btn btn-ghost" type="button" id="artCancel" hidden>取消编辑</button>
+      </form>
+      <div id="artErrors" class="errors" hidden></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>② 展厅时段与执行</h2>
+        <div class="hint">
+          <span class="dot dot-scheduled"></span>未开始
+          <span class="dot dot-frozen"></span>进行中（排期冻结、保留预占）
+          <span class="dot dot-finished"></span>已结束（按实际曝光结算）
+          <span class="dot dot-blocked"></span>预算不足·不可启动
+        </div>
+      </div>
+      <div id="blockBanner" class="banner banner-danger" hidden></div>
+      <div id="conflictBanner" class="banner banner-warn" hidden></div>
+      <div class="table-wrap">
+        <table id="slotTable">
+          <thead>
+            <tr>
+              <th>#</th><th>展厅</th><th>起</th><th>止</th>
+              <th class="num">照度(lx)</th><th>作品</th>
+              <th class="num">计划曝光</th><th class="num">实际曝光</th>
+              <th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>③ 排期整批调整（仅未开始时段）</h2>
+        <div class="hint">整批替换并整体校验：同一作品时段不得重叠；已用 + 进行中 + 全部未开始预占不得超过上限。任一作品不满足则整批拒绝。</div>
+      </div>
+      <div class="planner-tools">
+        <button id="reloadPlan" class="btn btn-ghost" type="button">从服务器重置编辑区</button>
+        <span class="planner-summary" id="planSummary"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="planTable">
+          <thead>
+            <tr>
+              <th>行</th><th>展厅</th><th>开始</th><th>结束</th>
+              <th class="num">照度(lx)</th><th>展出作品（可多选）</th>
+              <th class="num">计划曝光</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="planner-actions">
+        <button id="addRow" class="btn" type="button">+ 新增时段</button>
+        <button id="submitPlan" class="btn btn-primary" type="button">整批提交排期（version=<span id="planVersion">–</span>）</button>
+      </div>
+      <div id="planErrors" class="errors" hidden></div>
+    </section>
+  </main>
+
+  <!-- 结束补记弹窗 -->
+  <div id="finishModal" class="modal" hidden>
+    <div class="modal-box">
+      <h3>结束时段 #<span id="fmSlotId"></span>（<span id="fmHall"></span>）</h3>
+      <p class="hint">补记实际起止时间与实际照度，实际曝光将替换该时段预占；若导致后续预算不足，将标出不可开始时段并禁止启动。</p>
+      <form id="finishForm">
+        <label>实际开始 <input type="datetime-local" step="1" name="actual_start_at" required /></label>
+        <label>实际结束 <input type="datetime-local" step="1" name="actual_end_at" required /></label>
+        <label>实际照度(lx) <input type="number" min="0" step="1" name="actual_lux" required /></label>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">补记并结算</button>
+          <button type="button" class="btn btn-ghost" id="fmCancel">取消</button>
+        </div>
+      </form>
+      <div id="fmErrors" class="errors" hidden></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
